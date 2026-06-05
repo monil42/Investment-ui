@@ -3,288 +3,105 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>My Investment Agent</title>
-<style>
-  :root{
-    --blue:#2E6FF0; --green:#1F9D57; --amber:#C77B17; --red:#D64545;
-    --gray:#8A95A0; --ink:#1B2733; --soft:#F4F7FB; --line:#E1E6EB; --bg:#0b1021;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);
-       background:#eef2f7}
-  .wrap{max-width:860px;margin:0 auto;padding:18px 16px 60px}
-  h1{font-size:22px;margin:0 0 2px}
-  .muted{color:var(--gray);font-size:13px}
-  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0;
-        box-shadow:0 1px 2px rgba(16,24,40,.04)}
-  .card h2{font-size:16px;margin:0 0 10px}
-  .banner{background:#fff8e1;border:1px solid #ffe69c;color:#664d03;font-size:12px;
-          padding:9px 12px;border-radius:8px;margin:10px 0}
-  label{display:block;font-size:12px;color:var(--gray);margin:8px 0 3px}
-  input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  .row>div{flex:1;min-width:120px}
-  button{appearance:none;border:0;border-radius:9px;padding:10px 16px;font:600 14px inherit;
-         color:#fff;background:var(--blue);cursor:pointer}
-  button.secondary{background:#eef2f7;color:var(--ink);border:1px solid var(--line)}
-  button.green{background:var(--green)} button.ghost{background:transparent;color:var(--blue);padding:6px 8px}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;color:var(--gray);font-size:11px;text-transform:uppercase;border-bottom:2px solid #eef1f4;padding:6px 6px}
-  td{padding:7px 6px;border-bottom:1px solid #f0f3f6;vertical-align:middle}
-  .chip{color:#fff;border-radius:10px;padding:2px 9px;font-size:12px;font-weight:700;display:inline-block}
-  .pill{font-size:11px;color:var(--gray)}
-  .status{font-size:13px;padding:8px 10px;border-radius:8px;margin-top:8px;display:none}
-  .status.show{display:block}
-  .status.ok{background:#e8f6ee;color:#136c3a} .status.err{background:#fdecea;color:#a12d2d}
-  .status.info{background:#eef4ff;color:#274690}
-  .tickerin{width:84px;text-transform:uppercase} .numin{width:110px}
-  .x{color:var(--red);cursor:pointer;font-weight:700;border:0;background:none;padding:4px 8px}
-  .small{font-size:12px;color:var(--gray)}
-  a{color:var(--blue)}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
-</style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src https://api.github.com; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+<meta name="referrer" content="no-referrer" />
+<title>Investment Agent</title>
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+<nav class="nav">
+  <div class="nav-in">
+    <div class="brand"><span class="dot"></span> Investment Agent</div>
+    <div class="tabs">
+      <button class="tab" id="tab-dashboard">Dashboard</button>
+      <button class="tab" id="tab-holdings">Holdings</button>
+      <button class="tab" id="tab-settings">Settings</button>
+    </div>
+    <div class="connpill off" id="connpill"><span class="led"></span><span id="connText">Not connected</span></div>
+  </div>
+</nav>
+
 <div class="wrap">
-  <h1>📈 My Investment Agent</h1>
-  <div class="muted">On-demand reports, holdings, and recommendations — runs on GitHub, no PC needed.</div>
-  <div class="banner"><b>Educational only — not financial advice, not a prediction of returns.</b>
+  <div class="banner"><b>Educational only — not financial advice and not a prediction of returns.</b>
     Signals summarize public data; markets are risky and you can lose money. You place every trade yourself.</div>
 
-  <!-- CONNECT -->
-  <div class="card" id="connectCard">
-    <h2>1 · Connect</h2>
-    <div class="row">
-      <div><label>GitHub username (owner)</label><input id="owner" placeholder="monil42"></div>
-      <div><label>Repository</label><input id="repo" placeholder="Investment"></div>
+  <!-- ===== DASHBOARD ===== -->
+  <section id="view-dashboard" class="view">
+    <div class="card">
+      <div class="spread">
+        <div><h2>Recommendations</h2><div class="updated" id="updated"></div></div>
+        <div class="btnrow">
+          <button class="btn green" id="sendBtn">✉ Send report</button>
+          <button class="btn secondary" id="refreshBtn">↻ Refresh analysis</button>
+          <button class="btn ghost" id="reloadBtn">Reload</button>
+          <a class="pill hidden" id="runLink" target="_blank" rel="noopener noreferrer">view run ↗</a>
+        </div>
+      </div>
+      <div class="banner hidden" id="concNote"></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="empty hidden" id="recsEmpty">No analysis yet — click <b>Refresh analysis</b> to generate it.</div>
     </div>
-    <label>Access token (fine-grained, repo-scoped) — stored only in this browser</label>
-    <input id="token" type="password" placeholder="github_pat_…">
-    <div class="small">Needs permissions on this one repo: <b>Contents: Read &amp; write</b> and
-      <b>Actions: Read &amp; write</b>. Set an expiry. See setup guide. Never share this token.</div>
-    <div class="btnrow">
-      <button onclick="connect()">Save &amp; connect</button>
-      <button class="secondary" onclick="forgetToken()">Forget token</button>
-      <span id="connState" class="pill"></span>
-    </div>
-    <div id="connStatus" class="status"></div>
-  </div>
 
-  <!-- RECOMMENDATIONS -->
-  <div class="card" id="recsCard">
-    <h2>2 · Recommendations <span id="recsTime" class="pill"></span></h2>
-    <div id="recsSummary" class="small"></div>
-    <div id="recsBody"><div class="small">Connect above, then load your latest recommendations.</div></div>
-    <div class="btnrow">
-      <button class="green" onclick="refreshRecs()" id="refreshBtn">↻ Refresh analysis (no email)</button>
-      <button class="secondary" onclick="loadRecs(true)">Reload saved</button>
+    <div class="grid-2">
+      <div class="card"><div class="chart-h">Where your money is</div><div id="donut"></div></div>
+      <div class="card"><div class="chart-h">Signal scores (higher = more positive today)</div><div id="scoreBars"></div></div>
     </div>
-    <div id="recsStatus" class="status"></div>
-  </div>
 
-  <!-- HOLDINGS -->
-  <div class="card" id="holdCard">
-    <h2>3 · Your holdings (what you bought / sold)</h2>
-    <div class="small">Edit to match Robinhood. Add a row when you buy; remove or change shares when you sell.
-      No broker login — this only updates your own list.</div>
-    <table id="holdTable">
-      <thead><tr><th>Ticker</th><th>Shares</th><th>Cost $ (optional)</th><th></th></tr></thead>
-      <tbody id="holdRows"></tbody>
-    </table>
-    <div class="btnrow">
-      <button class="secondary" onclick="addRow()">+ Add holding</button>
-      <button onclick="saveHoldings()">Save holdings</button>
+    <div class="card">
+      <h2>Your holdings</h2>
+      <table><thead><tr><th>Stock</th><th>Price</th><th>Score</th><th>Our call</th><th>Conf.</th><th>~1-mo range</th></tr></thead>
+        <tbody id="holdReco"></tbody></table>
     </div>
-    <div id="holdStatus" class="status"></div>
-  </div>
 
-  <!-- SEND REPORT -->
-  <div class="card" id="sendCard">
-    <h2>4 · Email me the full report</h2>
-    <div class="small">Builds the full PDF (charts, ratings, news) from live data and emails it. ~1–2 minutes.</div>
-    <div class="btnrow">
-      <button class="green" onclick="sendReport()" id="sendBtn">✉ Send report to my email</button>
-      <a id="actionsLink" class="pill" target="_blank" rel="noopener"></a>
+    <div class="grid-2">
+      <div class="card"><h2>Ideas to research</h2>
+        <table><thead><tr><th>Stock</th><th>Price</th><th>Score</th><th>Call</th><th>Upside</th></tr></thead>
+          <tbody id="ideaTable"></tbody></table></div>
+      <div class="card"><h2>Weakest (be cautious)</h2>
+        <table><thead><tr><th>Stock</th><th>Price</th><th>Score</th><th>Call</th><th>Upside</th></tr></thead>
+          <tbody id="lagTable"></tbody></table></div>
     </div>
-    <div id="sendStatus" class="status"></div>
-  </div>
+    <div class="foot" id="foot"></div>
+  </section>
 
-  <div class="muted" id="footDisc" style="font-size:11px;margin-top:8px"></div>
+  <!-- ===== HOLDINGS ===== -->
+  <section id="view-holdings" class="view hidden">
+    <div class="card">
+      <h2>Your holdings</h2>
+      <div class="sub">Edit to match Robinhood — add a row when you buy; change shares or remove when you sell. No broker login, ever.</div>
+      <table><thead><tr><th>Ticker</th><th>Shares</th><th>Cost $ (optional)</th><th></th></tr></thead>
+        <tbody id="holdRows"></tbody></table>
+      <div class="btnrow">
+        <button class="btn secondary" id="addBtn">+ Add holding</button>
+        <button class="btn" id="saveBtn">Save holdings</button>
+      </div>
+      <div class="hint">After saving, go to Dashboard and press <b>Refresh analysis</b> to update your recommendations.</div>
+    </div>
+  </section>
+
+  <!-- ===== SETTINGS ===== -->
+  <section id="view-settings" class="view hidden">
+    <div class="card">
+      <h2>Connection</h2>
+      <div class="sub">Set this once. Stored only in your browser, scoped to one repo. No Robinhood password — ever.</div>
+      <div class="row">
+        <div class="field"><label>GitHub username</label><input id="s_owner" autocomplete="off" spellcheck="false" /></div>
+        <div class="field"><label>Repository</label><input id="s_repo" autocomplete="off" spellcheck="false" /></div>
+      </div>
+      <label>Fine-grained access token (Contents: R/W · Actions: R/W)</label>
+      <input id="s_token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" />
+      <label class="check"><input type="checkbox" id="s_remember" /> Keep me signed in on this device</label>
+      <div class="btnrow">
+        <button class="btn" id="connectBtn">Save &amp; connect</button>
+        <button class="btn danger" id="forgetBtn">Forget token</button>
+      </div>
+      <div class="hint" id="s_status"></div>
+      <div class="hint">🔒 The token lives only in your browser (kept across sessions only if the box above is ticked; otherwise cleared when you close the tab). It can only read/write files and run workflows on this one repo — not your account, not money. Revoke it anytime in GitHub → Developer settings. Setup help: <b>WEBSITE_SETUP.md</b> in your repo.</div>
+    </div>
+  </section>
 </div>
 
-<script>
-const COLORS = {green:'#1F9D57',blue:'#2E6FF0',amber:'#C77B17',red:'#D64545',gray:'#8A95A0',ink:'#1B2733'};
-const API = 'https://api.github.com';
-let SHA = null;          // sha of portfolio.json (needed to update it)
-let PF = null;           // loaded portfolio.json object
-
-const el = id => document.getElementById(id);
-const cfg = () => ({owner: localStorage.getItem('ia_owner')||'', repo: localStorage.getItem('ia_repo')||'', token: localStorage.getItem('ia_token')||''});
-function show(id,msg,kind){const s=el(id);s.textContent=msg;s.className='status show '+(kind||'info');}
-function hide(id){el(id).className='status';}
-
-function b64ToUtf8(b64){const bin=atob(b64.replace(/\s/g,''));const a=Uint8Array.from(bin,c=>c.charCodeAt(0));return new TextDecoder('utf-8').decode(a);}
-function utf8ToB64(str){const bytes=new TextEncoder().encode(str);let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin);}
-
-async function gh(method, path, body){
-  const {token}=cfg();
-  const r = await fetch(API+path, {
-    method,
-    headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
-    body: body?JSON.stringify(body):undefined,
-    cache:'no-store'
-  });
-  return r;
-}
-
-// ---------- connect ----------
-function loadCfgToInputs(){const c=cfg();el('owner').value=c.owner||'monil42';el('repo').value=c.repo||'Investment';el('token').value=c.token||'';}
-function forgetToken(){localStorage.removeItem('ia_token');el('token').value='';el('connState').textContent='token forgotten';}
-async function connect(){
-  localStorage.setItem('ia_owner', el('owner').value.trim());
-  localStorage.setItem('ia_repo', el('repo').value.trim());
-  localStorage.setItem('ia_token', el('token').value.trim());
-  const {owner,repo,token}=cfg();
-  if(!owner||!repo||!token){show('connStatus','Fill in owner, repo and token.','err');return;}
-  show('connStatus','Connecting…','info');
-  const r = await gh('GET', `/repos/${owner}/${repo}`);
-  if(r.status===200){
-    el('connState').textContent='✓ connected to '+owner+'/'+repo;
-    hide('connStatus');
-    loadHoldings(); loadRecs(false);
-  } else if(r.status===401){ show('connStatus','Token rejected (401). Check the token value.','err');
-  } else if(r.status===404){ show('connStatus','Repo not found / token lacks access (404). Check owner/repo and that the token is scoped to this repo.','err');
-  } else { show('connStatus','Connection failed: HTTP '+r.status,'err'); }
-}
-
-// ---------- holdings ----------
-async function loadHoldings(){
-  const {owner,repo}=cfg();
-  const r= await gh('GET', `/repos/${owner}/${repo}/contents/portfolio.json?ref=main`);
-  if(r.status!==200){show('holdStatus','Could not load portfolio.json (HTTP '+r.status+').','err');return;}
-  const j= await r.json(); SHA=j.sha; PF=JSON.parse(b64ToUtf8(j.content));
-  renderHoldings(); hide('holdStatus');
-}
-function renderHoldings(){
-  const tb=el('holdRows'); tb.innerHTML='';
-  (PF.holdings||[]).forEach(h=>addRow(h.ticker,h.shares,h.cost_value));
-  if(!(PF.holdings||[]).length) addRow();
-}
-function addRow(t,s,c){
-  const tr=document.createElement('tr');
-  tr.innerHTML=`<td><input class="tickerin" value="${t||''}"></td>
-    <td><input class="numin" type="number" step="any" value="${s??''}"></td>
-    <td><input class="numin" type="number" step="any" value="${c??''}"></td>
-    <td><button class="x" title="remove" onclick="this.closest('tr').remove()">✕</button></td>`;
-  el('holdRows').appendChild(tr);
-}
-async function saveHoldings(){
-  if(!PF){show('holdStatus','Connect first.','err');return;}
-  const rows=[...el('holdRows').querySelectorAll('tr')];
-  const holdings=[];
-  for(const tr of rows){
-    const [tk,sh,co]=tr.querySelectorAll('input');
-    const ticker=(tk.value||'').trim().toUpperCase(); if(!ticker) continue;
-    const shares=parseFloat(sh.value); if(isNaN(shares)){show('holdStatus','Bad shares for '+ticker,'err');return;}
-    const prev=(PF.holdings||[]).find(h=>(h.ticker||'').toUpperCase()===ticker);
-    const h={ticker, name:(prev&&prev.name)||ticker, shares};
-    const cost=parseFloat(co.value); if(!isNaN(cost)) h.cost_value=cost;
-    holdings.push(h);
-  }
-  if(!holdings.length){show('holdStatus','Add at least one holding.','err');return;}
-  PF.holdings=holdings; PF.pending_orders=PF.pending_orders||[]; PF.watchlist=PF.watchlist||[];
-  show('holdStatus','Saving…','info');
-  const {owner,repo}=cfg();
-  const r= await gh('PUT', `/repos/${owner}/${repo}/contents/portfolio.json`,
-    {message:'update holdings via web', content:utf8ToB64(JSON.stringify(PF,null,2)+'\n'), sha:SHA});
-  if(r.status===200||r.status===201){const j=await r.json();SHA=j.content.sha;
-    show('holdStatus','Saved ✓  ('+holdings.length+' holdings). Click "Refresh analysis" to update recommendations.','ok');
-  } else {show('holdStatus','Save failed: HTTP '+r.status,'err');}
-}
-
-// ---------- recommendations ----------
-async function loadRecs(announce){
-  const {owner,repo}=cfg();
-  const r= await gh('GET', `/repos/${owner}/${repo}/contents/data/latest.json?ref=main&t=${Date.now()}`);
-  if(r.status===404){el('recsBody').innerHTML='<div class="small">No saved recommendations yet — click <b>Refresh analysis</b>.</div>';return;}
-  if(r.status!==200){show('recsStatus','Could not load recommendations (HTTP '+r.status+').','err');return;}
-  const j=await r.json(); const d=JSON.parse(b64ToUtf8(j.content));
-  renderRecs(d); if(announce) show('recsStatus','Recommendations reloaded.','ok');
-}
-function chip(text,color){return `<span class="chip" style="background:${COLORS[color]||COLORS.gray}">${text}</span>`;}
-function arrow(a,color){return `<span style="color:${COLORS[color]||COLORS.gray};font-weight:700">${a||''}</span>`;}
-function pct(x){return x==null?'n/a':((x*100>=0?'+':'')+(x*100).toFixed(0)+'%');}
-function money(x){return x==null?'n/a':'$'+Number(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
-function renderRecs(d){
-  el('recsTime').textContent = d.generated? ('as of '+d.generated.replace('T',' ')):'';
-  let s=`Portfolio value <b>${money(d.portfolio_value)}</b>.`;
-  if(d.biggest_position && d.biggest_weight_pct>50)
-    s+=` <span style="color:${COLORS.red}">Concentration: ${d.biggest_position} is ${d.biggest_weight_pct}% — high single-stock risk.</span>`;
-  el('recsSummary').innerHTML=s;
-  const hrows=(d.holdings||[]).map(h=>`<tr>
-     <td><b>${h.ticker}</b></td><td>${money(h.price)}</td>
-     <td>${h.score==null?'n/a':Math.round(h.score)}</td>
-     <td>${arrow(h.arrow,h.color)} ${h.call}</td>
-     <td>${h.confidence||''}</td>
-     <td class="small">${h.range_lo!=null?money(h.range_lo)+'–'+money(h.range_hi):'n/a'}</td></tr>`).join('');
-  const lrows=(d.leaders||[]).map(c=>`<tr>
-     <td><b>${c.ticker}</b>${c.held?' <span class="pill">(held)</span>':''}</td>
-     <td>${money(c.price)}</td><td>${c.score==null?'':Math.round(c.score)}</td>
-     <td>${arrow(c.arrow,c.color)} ${c.call}</td><td>${pct(c.upside_pct)}</td></tr>`).join('');
-  const grows=(d.laggards||[]).map(c=>`<tr>
-     <td><b>${c.ticker}</b></td><td>${money(c.price)}</td><td>${c.score==null?'':Math.round(c.score)}</td>
-     <td>${arrow(c.arrow,c.color)} ${c.call}</td><td>${pct(c.upside_pct)}</td></tr>`).join('');
-  el('recsBody').innerHTML=`
-    <h3 style="font-size:13px;margin:12px 0 4px">Your holdings</h3>
-    <table><thead><tr><th>Stock</th><th>Price</th><th>Score</th><th>Our call</th><th>Conf.</th><th>~1-mo range</th></tr></thead><tbody>${hrows}</tbody></table>
-    <div class="grid2">
-      <div><h3 style="font-size:13px;margin:14px 0 4px">Ideas to research</h3>
-        <table><thead><tr><th>Stock</th><th>Price</th><th>Score</th><th>Call</th><th>Upside</th></tr></thead><tbody>${lrows}</tbody></table></div>
-      <div><h3 style="font-size:13px;margin:14px 0 4px">Weakest (be cautious)</h3>
-        <table><thead><tr><th>Stock</th><th>Price</th><th>Score</th><th>Call</th><th>Upside</th></tr></thead><tbody>${grows}</tbody></table></div>
-    </div>
-    <div class="small" style="margin-top:8px">High score = more positive signals today — a research starting point, never a guarantee.</div>`;
-  if(d.disclaimer) el('footDisc').textContent=d.disclaimer;
-}
-
-// ---------- workflow dispatch + poll ----------
-async function latestRun(file){
-  const {owner,repo}=cfg();
-  const r= await gh('GET', `/repos/${owner}/${repo}/actions/workflows/${file}/runs?per_page=1`);
-  if(r.status!==200) return null;
-  const j=await r.json(); return (j.workflow_runs&&j.workflow_runs[0])||null;
-}
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function dispatchAndWait(file, statusId, onDone){
-  const {owner,repo}=cfg();
-  if(!cfg().token){show(statusId,'Connect first.','err');return;}
-  const prev=await latestRun(file); const prevId=prev?prev.id:0;
-  const r= await gh('POST', `/repos/${owner}/${repo}/actions/workflows/${file}/dispatches`, {ref:'main'});
-  if(r.status!==204){show(statusId,'Could not start (HTTP '+r.status+'). Token needs Actions: write.','err');return;}
-  show(statusId,'Started on GitHub… this takes ~1–2 minutes.','info');
-  for(let i=0;i<24;i++){
-    await sleep(7000);
-    const run=await latestRun(file);
-    if(run){
-      el('actionsLink').textContent='view run ↗'; el('actionsLink').href=run.html_url;
-      if(run.id!==prevId && run.status==='completed'){
-        if(run.conclusion==='success'){show(statusId,'Done ✓','ok'); if(onDone)await onDone();}
-        else show(statusId,'Run finished with: '+run.conclusion+'. See "view run".','err');
-        return;
-      }
-    }
-  }
-  show(statusId,'Still running — check "view run", then use Reload.','info');
-}
-function sendReport(){dispatchAndWait('report.yml','sendStatus', async()=>{loadRecs(false);});}
-function refreshRecs(){dispatchAndWait('analyze-publish.yml','recsStatus', async()=>{await loadRecs(true);});}
-
-// init
-loadCfgToInputs();
-if(cfg().token && cfg().owner && cfg().repo){connect();}
-</script>
+<div class="toasts" id="toasts"></div>
+<script src="app.js" defer></script>
 </body>
 </html>
