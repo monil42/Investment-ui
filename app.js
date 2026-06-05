@@ -1,7 +1,7 @@
 'use strict';
 const API = 'https://api.github.com';
 const PALETTE = ['#2e6ff0', '#16a34a', '#d97706', '#7c5cff', '#06b6d4', '#e2683c', '#0ea5e9'];
-let SHA = null, PF = null, LAST = null, TOASTS = null;
+let SHA = null, PF = null, LAST = null, TOASTS = null, lastGen = null, pollTimer = null;
 
 /* ---------- storage (remember toggle: localStorage vs sessionStorage) ---------- */
 function getCfg() {
@@ -159,7 +159,9 @@ function renderRecs(d) {
     const v = document.createElement('div'); v.className = 'v'; v.innerHTML = t.v;
     const l = document.createElement('div'); l.className = 'l'; l.textContent = t.l; e.append(v, l); k.appendChild(e); });
 
-  $('updated').textContent = d.generated ? ('Updated ' + d.generated.replace('T', ' ')) : '';
+  lastGen = d.generated || lastGen;
+  $('updated').textContent = d.generated ? ('Updated ' + relTime(d.generated)) : '';
+  renderTicker(d.news);
   const cn = $('concNote');
   if (d.biggest_position && d.biggest_weight_pct > 50) {
     cn.innerHTML = `⚠️ <b>${esc(d.biggest_position)} is ${d.biggest_weight_pct}%</b> of your portfolio — high single-stock risk. Spreading out lowers risk.`;
@@ -172,11 +174,12 @@ function renderRecs(d) {
 
   $('holdReco').innerHTML = (d.holdings || []).map(h => `<tr>
     <td class="tk">${esc(h.ticker)}</td><td>${money(h.price)}</td>
+    <td>${sparkSVG(h.spark)}</td>
     <td>${h.score == null ? 'n/a' : Math.round(h.score)}</td>
     <td>${arw(h.arrow, h.color)}${esc(h.call)}</td>
     <td>${esc(h.confidence || '')}</td>
     <td class="pill">${h.range_lo != null ? money(h.range_lo) + '–' + money(h.range_hi) : 'n/a'}</td></tr>`).join('')
-    || '<tr><td colspan="6" class="empty">No holdings.</td></tr>';
+    || '<tr><td colspan="7" class="empty">No holdings.</td></tr>';
 
   const candRow = c => `<tr>
     <td class="tk">${esc(c.ticker)}${c.held ? ' <span class="pill">(held)</span>' : ''}</td>
@@ -222,6 +225,56 @@ function drawBars(container, items, max, fmt) {
   container.appendChild(box);
 }
 
+/* ---------- live: sparklines, news ticker, auto-refresh ---------- */
+function sparkSVG(arr) {
+  if (!arr || arr.length < 2) return '';
+  const w = 84, h = 24, p = 2, mn = Math.min(...arr), mx = Math.max(...arr), rng = (mx - mn) || 1;
+  const pts = arr.map((v, i) => {
+    const x = p + i / (arr.length - 1) * (w - 2 * p);
+    const y = p + (1 - (v - mn) / rng) * (h - 2 * p);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+  const col = arr[arr.length - 1] >= arr[0] ? '#16a34a' : '#dc2626';
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+function relTime(iso) {
+  if (!iso) return '';
+  const t = new Date(String(iso).replace(' ', 'T')); const s = (Date.now() - t.getTime()) / 1000;
+  if (isNaN(s)) return ''; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + ' min ago';
+  if (s < 86400) return Math.floor(s / 3600) + ' h ago'; return Math.floor(s / 86400) + ' d ago';
+}
+function renderTicker(news) {
+  const track = $('tickerTrack'); if (!track) return;
+  if (!news || !news.length) { track.style.animation = 'none'; track.innerHTML = '<div class="ticker-item">No fresh headlines right now.</div>'; return; }
+  const safe = u => (typeof u === 'string' && /^https?:\/\//i.test(u)) ? u : null;
+  const item = n => {
+    const dot = n.important ? '<span class="imp"></span>' : '';
+    const meta = `<span class="t-meta">${esc(n.ticker || '')}${n.source ? (' · ' + esc(n.source)) : ''}${n.date ? (' · ' + esc(n.date)) : ''}</span>`;
+    const inner = `${dot}<span class="t-title">${esc(n.title || '')}</span>${meta}`;
+    const u = safe(n.url);
+    return u ? `<a class="ticker-item" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : `<div class="ticker-item">${inner}</div>`;
+  };
+  const html = news.map(item).join('');
+  track.innerHTML = html + html;                          // duplicate for seamless loop
+  track.style.animation = `tick ${Math.max(14, news.length * 3)}s linear infinite`;
+}
+function liveOn() { return localStorage.getItem('ia_live') !== '0'; }
+function updateLivePill() { const on = liveOn(); $('livePill').className = 'livepill ' + (on ? 'on' : ''); $('liveText').textContent = on ? 'live' : 'paused'; }
+function flash() { const c = document.querySelector('#view-dashboard .card:nth-child(2)'); if (c) { c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 1000); } }
+async function pollOnce() {
+  const c = getCfg(); if (!c.owner || !c.token) return;
+  const r = await gh('GET', `/repos/${c.owner}/${c.repo}/contents/data/latest.json?ref=main&t=${Date.now()}`);
+  if (!r.ok) return;
+  let d; try { d = JSON.parse(b64ToUtf8(r.data.content)); } catch (_) { return; }
+  if (d.generated !== lastGen) { LAST = d; renderRecs(d); flash(); toast('Live update ✓', 'ok', 2500); }
+}
+function startLive() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    if (liveOn() && !$('view-dashboard').classList.contains('hidden') && hasToken()) pollOnce();
+  }, 60000);
+}
+
 /* ---------- run workflows ---------- */
 async function latestRun(file) {
   const { owner, repo } = getCfg();
@@ -265,6 +318,12 @@ function init() {
   $('saveBtn').addEventListener('click', saveHoldings);
   $('connectBtn').addEventListener('click', () => connect());
   $('forgetBtn').addEventListener('click', doForget);
+
+  $('liveToggle').checked = liveOn();
+  $('liveToggle').addEventListener('change', () => { localStorage.setItem('ia_live', $('liveToggle').checked ? '1' : '0'); updateLivePill(); });
+  updateLivePill();
+  startLive();
+  setInterval(() => { if (LAST && LAST.generated) $('updated').textContent = 'Updated ' + relTime(LAST.generated); }, 30000);
 
   const c = getCfg();
   $('s_owner').value = c.owner || 'monil42';

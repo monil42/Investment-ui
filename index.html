@@ -27,6 +27,10 @@
 
   <!-- ===== DASHBOARD ===== -->
   <section id="view-dashboard" class="view">
+    <div class="card ticker-card" id="tickerCard">
+      <div class="ticker-top"><span class="rd"></span> CRITICAL NEWS</div>
+      <div class="ticker"><div class="ticker-track" id="tickerTrack"></div></div>
+    </div>
     <div class="card">
       <div class="spread">
         <div><h2>Recommendations</h2><div class="updated" id="updated"></div></div>
@@ -34,6 +38,8 @@
           <button class="btn green" id="sendBtn">✉ Send report</button>
           <button class="btn secondary" id="refreshBtn">↻ Refresh analysis</button>
           <button class="btn ghost" id="reloadBtn">Reload</button>
+          <label class="check"><input type="checkbox" id="liveToggle" /> Live</label>
+          <span class="livepill" id="livePill"><span class="ld"></span><span id="liveText">paused</span></span>
           <a class="pill hidden" id="runLink" target="_blank" rel="noopener noreferrer">view run ↗</a>
         </div>
       </div>
@@ -49,7 +55,7 @@
 
     <div class="card">
       <h2>Your holdings</h2>
-      <table><thead><tr><th>Stock</th><th>Price</th><th>Score</th><th>Our call</th><th>Conf.</th><th>~1-mo range</th></tr></thead>
+      <table><thead><tr><th>Stock</th><th>Price</th><th>Trend</th><th>Score</th><th>Our call</th><th>Conf.</th><th>~1-mo range</th></tr></thead>
         <tbody id="holdReco"></tbody></table>
     </div>
 
